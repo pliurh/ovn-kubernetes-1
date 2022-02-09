@@ -548,6 +548,13 @@ func (n *NodeController) EnsureHybridOverlayBridge(node *kapi.Node) error {
 			fmt.Sprintf("table=10,priority=100,ip,nw_dst=%s,"+
 				"actions=mod_dl_src:%s,mod_dl_dst:%s,output:ext",
 				mgmtIfAddr.IP.String(), portMAC.String(), mgmtPortMAC.String()))
+
+		gwIfAddr := util.GetNodeGatewayIfAddr(subnet)
+		gwPortMAC := util.IPAddrToHWAddr(gwIfAddr.IP)
+		flows = append(flows,
+			fmt.Sprintf("table=10,priority=100,ip,nw_dst=%s,"+
+				"actions=mod_dl_src:%s,mod_dl_dst:%s,output:ext",
+				gwIfAddr.IP.String(), portMAC.String(), gwPortMAC.String()))
 	}
 
 	n.updateFlowCacheEntry("0x0", flows, false)

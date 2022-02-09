@@ -16,7 +16,7 @@ const (
 	// HybridOverlayVTEP is a pod and namespace annotation that holds the IP address of the VTEP
 	HybridOverlayVTEP = HybridOverlayAnnotationBase + "vtep"
 	// HybridOverlayVNI is the VNI for VXLAN tunnels between nodes/endpoints
-	HybridOverlayVNI = 4097
+	HybridOverlayVNI = 0
 )
 
 // NodeHandler interface respresents the three functions that get called by the informer upon respective events
