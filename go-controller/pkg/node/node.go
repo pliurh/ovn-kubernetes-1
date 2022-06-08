@@ -362,6 +362,11 @@ func (n *OvnNode) Start(ctx context.Context, wg *sync.WaitGroup) error {
 		if err != nil {
 			return err
 		}
+	} else if config.OvnKubeNode.Mode == types.NodeModeDPUHost {
+		err = removeStaleChassisByNodeIP(nodeAddr)
+		if err != nil {
+			return err
+		}
 	}
 
 	// First wait for the node logical switch to be created by the Master, timeout is 300s.
@@ -694,5 +699,23 @@ func upgradeServiceRoute(bridgeName string) error {
 			klog.Errorf("Failed to LocalGatewayNATRules: %v", err)
 		}
 	}
+	return nil
+}
+
+func removeStaleChassisByNodeIP(ip net.IP) error {
+	chassis_id, _, err := util.RunOVNSbctl("--data=bare", "--no-heading", "--columns=chassis_name", "find", "Encap",
+	fmt.Sprintf("ip=%s", ip.String()))
+	if err != nil {
+		return err
+	}
+
+	if chassis_id != "" {
+		klog.V(2).Infof("remove stale chassis: %s", chassis_id)
+		_, _, err = util.RunOVNSbctl("chassis-del", chassis_id)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
