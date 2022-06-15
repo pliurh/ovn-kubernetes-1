@@ -285,6 +285,11 @@ func (_m *KubeInterface) GetPods(namespace string, labelSelector metav1.LabelSel
 	return r0, r1
 }
 
+// UpdatePod provides a mock function with given fields: pod
+func (_m *KubeInterface) UpdatePod(pod *v1.Pod) error {
+	return nil
+}
+
 // PatchNode provides a mock function with given fields: old, new
 func (_m *KubeInterface) PatchNode(old *v1.Node, new *v1.Node) error {
 	ret := _m.Called(old, new)
