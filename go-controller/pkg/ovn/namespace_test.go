@@ -341,6 +341,96 @@ var _ = ginkgo.Describe("OVN Namespace Operations", func() {
 			fakeOvn.asf.EventuallyExpectAddressSetWithAddresses(hostNetworkNamespace, allowIPs)
 		})
 
+		ginkgo.It("creates an address set for hybrid overlay nodes when the host network traffic namespace is created", func() {
+			config.HybridOverlay.Enabled = true
+			config.Kubernetes.NoHostSubnetNodes, _ = metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+				MatchLabels: map[string]string{"hybrid-overlay-node": "true"},
+			})
+			config.Gateway.Mode = config.GatewayModeShared
+			config.Gateway.NodeportEnable = true
+			var err error
+			config.Default.ClusterSubnets, err = config.ParseClusterSubnetEntries(clusterCIDR)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+			node1 := tNode{
+				Name:       "node1",
+				NodeIP:     "1.2.3.4",
+				NodeSubnet: "10.1.1.0/24",
+				NodeGWIP:   "10.1.1.1/24",
+			}
+			// create a test node and annotate it with host subnet
+			testNode := v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   node1.Name,
+					Labels: map[string]string{"hybrid-overlay-node": "true"},
+					Annotations: map[string]string{
+						"k8s.ovn.org/hybrid-overlay-node-subnet": node1.NodeSubnet,
+						"k8s.ovn.org/node-subnets":               fmt.Sprintf("{\"default\":\"%s\"}", node1.NodeSubnet),
+					},
+				},
+			}
+
+			hostNetworkNamespace := "test-host-network-ns"
+			config.Kubernetes.HostNetworkNamespace = hostNetworkNamespace
+
+			expectedClusterLBGroup := newLoadBalancerGroup(ovntypes.ClusterLBGroupName)
+			expectedSwitchLBGroup := newLoadBalancerGroup(ovntypes.ClusterSwitchLBGroupName)
+			expectedRouterLBGroup := newLoadBalancerGroup(ovntypes.ClusterRouterLBGroupName)
+			expectedOVNClusterRouter := newOVNClusterRouter()
+			expectedNodeSwitch := node1.logicalSwitch([]string{expectedClusterLBGroup.UUID, expectedSwitchLBGroup.UUID})
+			expectedClusterRouterPortGroup := newRouterPortGroup()
+			expectedClusterPortGroup := newClusterPortGroup()
+
+			fakeOvn.startWithDBSetup(
+				libovsdbtest.TestSetup{
+					NBData: []libovsdbtest.TestData{
+						newClusterJoinSwitch(),
+						expectedOVNClusterRouter,
+						expectedNodeSwitch,
+						expectedClusterRouterPortGroup,
+						expectedClusterPortGroup,
+						expectedClusterLBGroup,
+						expectedSwitchLBGroup,
+						expectedRouterLBGroup,
+					},
+				},
+				&v1.NamespaceList{
+					Items: []v1.Namespace{
+						*newNamespace(hostNetworkNamespace),
+					},
+				},
+				&v1.NodeList{
+					Items: []v1.Node{
+						testNode,
+					},
+				},
+			)
+			fakeOvn.controller.multicastSupport = false
+			fakeOvn.controller.SCTPSupport = true
+			fakeOvn.controller.inMigrationMode = true
+
+			err = fakeOvn.controller.WatchNamespaces()
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+			err = fakeOvn.controller.WatchNodes()
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+			err = fakeOvn.controller.StartServiceController(wg, false)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+			// check the namespace again and ensure the address set
+			// being created with the right set of IPs in it.
+			ip, _, _ := net.ParseCIDR(node1.NodeGWIP)
+			allowIPs := []string{ip.String()}
+			fakeOvn.asf.EventuallyExpectAddressSetWithAddresses(hostNetworkNamespace, allowIPs)
+			// switch the node from a ho node to a ovn node
+			testNode.Labels = map[string]string{}
+			fakeOvn.fakeClient.GetNodeClientset().KubeClient.CoreV1().Nodes().Update(context.TODO(), &testNode, metav1.UpdateOptions{})
+			// check the namespace again and ensure the ho node gateway IP is removed from the address_set
+			allowIPs = []string{}
+			fakeOvn.asf.EventuallyExpectAddressSetWithAddresses(hostNetworkNamespace, allowIPs)
+		})
+
 		ginkgo.It("reconciles an existing namespace port group, without updating it", func() {
 			// this flag will create namespaced port group
 			config.OVNKubernetesFeature.EnableEgressFirewall = true
