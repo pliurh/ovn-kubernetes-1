@@ -185,9 +185,7 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 					sncm, err := newSecondaryNetworkClusterManager(fakeClient, f, networkmanager.Default().Interface(), recorder)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-					namedIDAllocator := sncm.networkIDAllocator.ForName(netInfo.GetNetworkName())
 					nc := newNetworkClusterController(
-						namedIDAllocator,
 						netInfo,
 						sncm.ovnClient,
 						sncm.watchFactory,
@@ -384,9 +382,6 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 				sncm, err := newSecondaryNetworkClusterManager(fakeClient, f, networkmanager.Default().Interface(), recorder)
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-				err = sncm.init()
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-
 				// Create a fake nad controller for blue network so that the red network gets cleared
 				// when CleanupDeletedNetworks is called.  If we don't pass any controller to
 				// CleanupDeletedNetworks it will try to cleanup both blue and red networks and
@@ -396,9 +391,7 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 				netInfo, err := util.NewNetInfo(&ovncnitypes.NetConf{NetConf: types.NetConf{Name: "blue"}, Topology: ovntypes.Layer3Topology})
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-				namedIDAllocator := sncm.networkIDAllocator.ForName(netInfo.GetNetworkName())
 				oc := newNetworkClusterController(
-					namedIDAllocator,
 					netInfo,
 					sncm.ovnClient,
 					sncm.watchFactory,
@@ -491,9 +484,7 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 						sncm, err := newSecondaryNetworkClusterManager(fakeClient, f, networkmanager.Default().Interface(), recorder)
 						gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-						namedIDAllocator := sncm.networkIDAllocator.ForName(netInfo.GetNetworkName())
 						nc := newNetworkClusterController(
-							namedIDAllocator,
 							netInfo,
 							sncm.ovnClient,
 							sncm.watchFactory,
@@ -544,9 +535,7 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 						sncm, err := newSecondaryNetworkClusterManager(fakeClient, f, networkmanager.Default().Interface(), recorder)
 						gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-						namedIDAllocator := sncm.networkIDAllocator.ForName(netInfo.GetNetworkName())
 						nc := newNetworkClusterController(
-							namedIDAllocator,
 							netInfo,
 							sncm.ovnClient,
 							sncm.watchFactory,
@@ -595,9 +584,7 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 						sncm, err := newSecondaryNetworkClusterManager(fakeClient, f, networkmanager.Default().Interface(), recorder)
 						gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-						namedIDAllocator := sncm.networkIDAllocator.ForName(netInfo.GetNetworkName())
 						nc := newNetworkClusterController(
-							namedIDAllocator,
 							netInfo,
 							sncm.ovnClient,
 							sncm.watchFactory,
@@ -666,9 +653,7 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 						sncm, err := newSecondaryNetworkClusterManager(fakeClient, f, networkmanager.Default().Interface(), recorder)
 						gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-						namedIDAllocator := sncm.networkIDAllocator.ForName(netInfo.GetNetworkName())
 						nc := newNetworkClusterController(
-							namedIDAllocator,
 							netInfo,
 							sncm.ovnClient,
 							sncm.watchFactory,
@@ -740,9 +725,7 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 						sncm, err := newSecondaryNetworkClusterManager(fakeClient, f, networkmanager.Default().Interface(), recorder)
 						gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-						namedIDAllocator := sncm.networkIDAllocator.ForName(netInfo.GetNetworkName())
 						nc := newNetworkClusterController(
-							namedIDAllocator,
 							netInfo,
 							sncm.ovnClient,
 							sncm.watchFactory,
@@ -808,9 +791,7 @@ var _ = ginkgo.Describe("Cluster Controller Manager", func() {
 					sncm, err := newSecondaryNetworkClusterManager(fakeClient, f, networkmanager.Default().Interface(), recorder)
 					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-					namedIDAllocator := sncm.networkIDAllocator.ForName(netInfo.GetNetworkName())
 					nc := newNetworkClusterController(
-						namedIDAllocator,
 						netInfo,
 						sncm.ovnClient,
 						sncm.watchFactory,
