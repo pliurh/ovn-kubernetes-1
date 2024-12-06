@@ -72,6 +72,7 @@ type NetInfo interface {
 	GetNetworkScopedLoadBalancerName(lbName string) string
 	GetNetworkScopedLoadBalancerGroupName(lbGroupName string) string
 	GetNetworkScopedClusterSubnetSNATMatch(nodeName string) string
+	GetTransportProtocol() string
 
 	// GetNetInfo is an identity method used to get the specific NetInfo
 	// implementation
@@ -103,6 +104,8 @@ type MutableNetInfo interface {
 
 	// Nodes advertising Egress IP
 	SetEgressIPAdvertisedVRFs(eipAdvertisements map[string][]string)
+
+	SetTransportProtocol(string)
 }
 
 // NewMutableNetInfo builds a copy of netInfo as a MutableNetInfo
@@ -215,7 +218,8 @@ type mutableNetInfo struct {
 	// information generated from previous fields, not used in comparisons
 
 	// namespaces from nads
-	namespaces sets.Set[string]
+	namespaces        sets.Set[string]
+	transportProtocol string
 }
 
 func mutable(netInfo NetInfo) *mutableNetInfo {
@@ -245,7 +249,8 @@ func (l *mutableNetInfo) equals(r *mutableNetInfo) bool {
 	return reflect.DeepEqual(l.id, r.id) &&
 		reflect.DeepEqual(l.nads, r.nads) &&
 		reflect.DeepEqual(l.podNetworkAdvertisements, r.podNetworkAdvertisements) &&
-		reflect.DeepEqual(l.eipAdvertisements, r.eipAdvertisements)
+		reflect.DeepEqual(l.eipAdvertisements, r.eipAdvertisements) &&
+		reflect.DeepEqual(l.transportProtocol, r.transportProtocol)
 }
 
 func (l *mutableNetInfo) copyFrom(r *mutableNetInfo) {
@@ -256,6 +261,7 @@ func (l *mutableNetInfo) copyFrom(r *mutableNetInfo) {
 	aux.setPodNetworkAdvertisedOnVRFs(r.podNetworkAdvertisements)
 	aux.setEgressIPAdvertisedAtNodes(r.eipAdvertisements)
 	aux.namespaces = r.namespaces.Clone()
+	aux.transportProtocol = r.transportProtocol
 	r.RUnlock()
 	l.Lock()
 	defer l.Unlock()
@@ -264,6 +270,7 @@ func (l *mutableNetInfo) copyFrom(r *mutableNetInfo) {
 	l.podNetworkAdvertisements = aux.podNetworkAdvertisements
 	l.eipAdvertisements = aux.eipAdvertisements
 	l.namespaces = aux.namespaces
+	l.transportProtocol = aux.transportProtocol
 }
 
 func (nInfo *mutableNetInfo) GetNetworkID() int {
@@ -421,6 +428,14 @@ func (nInfo *mutableNetInfo) getNamespaces() sets.Set[string] {
 
 func (nInfo *mutableNetInfo) GetNamespaces() []string {
 	return nInfo.getNamespaces().UnsortedList()
+}
+
+func (nInfo *mutableNetInfo) GetTransportProtocol() string {
+	return nInfo.transportProtocol
+}
+
+func (nInfo *mutableNetInfo) SetTransportProtocol(protocol string) {
+	nInfo.transportProtocol = protocol
 }
 
 func (nInfo *DefaultNetInfo) GetNetInfo() NetInfo {
@@ -859,7 +874,8 @@ func newLayer3NetConfInfo(netconf *ovncnitypes.NetConf) (MutableNetInfo, error) 
 		joinSubnets:    joinSubnets,
 		mtu:            netconf.MTU,
 		mutableNetInfo: mutableNetInfo{
-			nads: sets.Set[string]{},
+			nads:              sets.Set[string]{},
+			transportProtocol: netconf.TransportProtocol,
 		},
 	}
 	ni.ipv4mode, ni.ipv6mode = getIPMode(subnets)
@@ -885,7 +901,8 @@ func newLayer2NetConfInfo(netconf *ovncnitypes.NetConf) (MutableNetInfo, error) 
 		mtu:                netconf.MTU,
 		allowPersistentIPs: netconf.AllowPersistentIPs,
 		mutableNetInfo: mutableNetInfo{
-			nads: sets.Set[string]{},
+			nads:              sets.Set[string]{},
+			transportProtocol: netconf.TransportProtocol,
 		},
 	}
 	ni.ipv4mode, ni.ipv6mode = getIPMode(subnets)
@@ -908,7 +925,8 @@ func newLocalnetNetConfInfo(netconf *ovncnitypes.NetConf) (MutableNetInfo, error
 		allowPersistentIPs:  netconf.AllowPersistentIPs,
 		physicalNetworkName: netconf.PhysicalNetworkName,
 		mutableNetInfo: mutableNetInfo{
-			nads: sets.Set[string]{},
+			nads:              sets.Set[string]{},
+			transportProtocol: netconf.TransportProtocol,
 		},
 	}
 	ni.ipv4mode, ni.ipv6mode = getIPMode(subnets)
@@ -1033,7 +1051,11 @@ func NewNetInfo(netconf *ovncnitypes.NetConf) (NetInfo, error) {
 
 func newNetInfo(netconf *ovncnitypes.NetConf) (MutableNetInfo, error) {
 	if netconf.Name == types.DefaultNetworkName {
-		return &DefaultNetInfo{}, nil
+		return &DefaultNetInfo{
+			mutableNetInfo: mutableNetInfo{
+				transportProtocol: netconf.TransportProtocol,
+			},
+		}, nil
 	}
 	var ni MutableNetInfo
 	var err error
@@ -1070,7 +1092,7 @@ func GetAnnotatedNetworkName(netattachdef *nettypes.NetworkAttachmentDefinition)
 		return ""
 	}
 	return netattachdef.Annotations[types.OvnNetworkNameAnnotation]
-} 
+}
 
 // ParseNADInfo parses config in NAD spec and return a NetAttachDefInfo object for secondary networks
 func ParseNADInfo(netattachdef *nettypes.NetworkAttachmentDefinition) (NetInfo, error) {
