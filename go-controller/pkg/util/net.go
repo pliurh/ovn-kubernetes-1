@@ -347,3 +347,10 @@ func IPNetsIPToStringSlice(ips []*net.IPNet) []string {
 func CalculateRouteTableID(ifIndex int) int {
 	return ifIndex + RoutingTableIDStart
 }
+
+func CIDRsOverlap(cidr1, cidr2 *net.IPNet) bool {
+	if utilnet.IsIPv4CIDR(cidr1) != utilnet.IsIPv4CIDR(cidr2) {
+		return false
+	}
+	return cidr1.Contains(cidr2.IP) || cidr2.Contains(cidr1.IP)
+}
